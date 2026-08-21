@@ -51,7 +51,7 @@ public class TourApp {
                 .riderItem("Backline + soundcheck")
                 .riderItem("Catering for 10")
                 .build();
-        rootNode.add(addNode(master, true));
+        treeModel.insertNodeInto(addNode(master, true), rootNode, 0);
         for (TicketTier tier : master.tiers) {
             JButton button = new JButton("Sell " + tier.name + " ($" + String.format("%,d", tier.price) + ")");
             button.addActionListener(e -> sell(tier));
