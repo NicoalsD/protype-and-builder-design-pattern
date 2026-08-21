@@ -234,6 +234,7 @@ public class TourApp {
         for (int i = 0; i < 5; i++) {
             base.sell(base.tiers.get(0));
         }
+        check(clone.sold == 0 && clone.revenue == 0, "a clone must start with fresh sales");
         boolean soldOut = false;
         try {
             base.sell(base.tiers.get(0));

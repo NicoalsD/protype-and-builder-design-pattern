@@ -31,8 +31,7 @@ public class Event {
         this.capacity = other.capacity;
         this.tiers = new ArrayList<>(other.tiers);
         this.rider = new ArrayList<>(other.rider);
-        this.sold = other.sold;
-        this.revenue = other.revenue;
+        // sales are NOT copied: a new tour stop starts with zero tickets sold
     }
 
     public Event cloneFor(String city, String venue, String date) {
