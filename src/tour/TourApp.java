@@ -2,9 +2,10 @@ package tour;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.GraphicsEnvironment;
-import java.util.ArrayList;
-import java.util.List;
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -17,10 +18,11 @@ import javax.swing.SwingUtilities;
 
 public class TourApp {
     private final Event master;
-    private final List<Event> tour = new ArrayList<>();
     private final JComboBox<Event> eventBox = new JComboBox<>();
+    private final JLabel stopDetailLabel = new JLabel();
     private final JLabel remainingLabel = new JLabel();
     private final JLabel revenueLabel = new JLabel();
+    private final JLabel statusLabel = new JLabel(" ");
     private final JProgressBar capacityBar = new JProgressBar(0, 100);
     private final JLabel soldOutLabel = new JLabel("SOLD OUT");
     private Event selected;
@@ -36,14 +38,13 @@ public class TourApp {
                 .riderItem("Backline + soundcheck")
                 .riderItem("Catering for 10")
                 .build();
-        tour.add(master);
     }
 
-    private void addClone(String city, String venue, String date) {
-        Event clone = master.cloneFor(city, venue, date);
-        tour.add(clone);
+    private void addClone(String city, String date) {
+        Event clone = master.cloneFor(city, master.venue, date);
         eventBox.addItem(clone);
         eventBox.setSelectedItem(clone);
+        statusLabel.setText("Cloned " + master.city + " -> " + city + " (Prototype deep copy)");
         refresh();
     }
 
@@ -51,9 +52,20 @@ public class TourApp {
         try {
             selected.sell(tier);
         } catch (IllegalStateException e) {
-            soldOutLabel.setVisible(true);
+            // SOLD OUT: refresh() below shows the label
         }
         refresh();
+    }
+
+    private static String tierSummary(Event e) {
+        StringBuilder sb = new StringBuilder();
+        for (TicketTier t : e.tiers) {
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            sb.append(t.name).append(" $").append(String.format("%,d", t.price));
+        }
+        return sb.toString();
     }
 
     private void refresh() {
@@ -61,64 +73,103 @@ public class TourApp {
         if (selected == null) {
             return;
         }
+        stopDetailLabel.setText("<html><b>" + selected.city + "</b> | " + selected.venue
+                + " | " + selected.date + "<br>Tiers: " + tierSummary(selected) + "<br>Rider: "
+                + String.join("; ", selected.rider) + "</html>");
         int remaining = selected.remaining();
         remainingLabel.setText(remaining + " of " + selected.capacity + " tickets left");
         capacityBar.setValue(100 * selected.sold / selected.capacity);
-        revenueLabel.setText("Revenue: $" + selected.revenue + " COP");
+        capacityBar.setString(selected.sold + "/" + selected.capacity + " sold");
+        revenueLabel.setText("Revenue: $" + String.format("%,d", selected.revenue) + " COP");
         soldOutLabel.setVisible(remaining == 0);
     }
 
-    private JPanel buildTierPanel() {
+    private static JPanel section(String title) {
         JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.setBorder(BorderFactory.createTitledBorder(title));
+        return panel;
+    }
+
+    private static JPanel buildBannerPanel() {
+        JLabel banner = new JLabel("<html><b>How it works:</b> the master event is built once with the "
+                + "<b>Builder</b> pattern. Every tour stop is a <b>Prototype</b> deep clone of the master. "
+                + "Select a stop and sell tickets, or clone the master to add a new stop.</html>");
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        panel.add(banner, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel buildMasterPanel() {
+        JPanel panel = section("Master event — built once via Builder");
+        panel.add(new JLabel("<html><b>" + master.city + "</b> | " + master.venue + " | " + master.date
+                + "<br>Capacity: " + master.capacity + " seats<br>Tiers: " + tierSummary(master)
+                + "<br>Rider: " + String.join("; ", master.rider) + "</html>"));
+        return panel;
+    }
+
+    private JPanel buildStopPanel() {
+        JPanel panel = section("Tour stops — Prototype clones");
+        eventBox.addActionListener(e -> refresh());
+        eventBox.addItem(master);
+        panel.add(eventBox);
+        panel.add(stopDetailLabel);
+        return panel;
+    }
+
+    private JPanel buildSalesPanel() {
+        JPanel panel = section("Ticket sales");
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
         for (TicketTier tier : master.tiers) {
-            JButton button = new JButton("Sell " + tier.name + " ($" + tier.price + ")");
+            JButton button = new JButton("Sell " + tier.name + " ($" + String.format("%,d", tier.price) + ")");
             button.addActionListener(e -> sell(tier));
-            panel.add(button);
+            buttons.add(button);
         }
+        panel.add(buttons);
+        panel.add(remainingLabel);
+        capacityBar.setStringPainted(true);
+        panel.add(capacityBar);
+        panel.add(revenueLabel);
+        soldOutLabel.setForeground(Color.RED);
+        soldOutLabel.setVisible(false);
+        panel.add(soldOutLabel);
         return panel;
     }
 
     private JPanel buildClonePanel() {
-        JPanel panel = new JPanel();
+        JPanel panel = section("Clone master to a new city");
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JTextField cityField = new JTextField(12);
-        JButton cloneButton = new JButton("Clone to city");
+        JTextField dateField = new JTextField("2027-03-15", 10);
+        JButton cloneButton = new JButton("Clone");
         cloneButton.addActionListener(e -> {
             if (!cityField.getText().isBlank()) {
-                addClone(cityField.getText(), master.venue, "2027-03-15");
+                addClone(cityField.getText().trim(), dateField.getText().trim());
                 cityField.setText("");
             }
         });
-        panel.add(cityField);
-        panel.add(cloneButton);
+        row.add(new JLabel("City:"));
+        row.add(cityField);
+        row.add(new JLabel("Date:"));
+        row.add(dateField);
+        row.add(cloneButton);
+        panel.add(row);
+        panel.add(statusLabel);
         return panel;
     }
 
     private JFrame buildFrame() {
         JFrame frame = new JFrame("Concert Tour Manager");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLayout(new BorderLayout());
-
-        JLabel masterLabel = new JLabel(
-                "Master event: " + master.city + " | " + master.venue + " | " + master.date
-                        + " | " + master.capacity + " seats | " + master.rider);
-        eventBox.addActionListener(e -> refresh());
-        eventBox.addItem(master);
-
-        soldOutLabel.setForeground(Color.RED);
-        soldOutLabel.setVisible(false);
-        capacityBar.setStringPainted(true);
-
         JPanel center = new JPanel();
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-        center.add(masterLabel);
-        center.add(eventBox);
-        center.add(buildTierPanel());
-        center.add(remainingLabel);
-        center.add(capacityBar);
-        center.add(revenueLabel);
-        center.add(soldOutLabel);
+        center.add(buildBannerPanel());
+        center.add(buildMasterPanel());
+        center.add(buildStopPanel());
+        center.add(buildSalesPanel());
         center.add(buildClonePanel());
-
         frame.add(center, BorderLayout.CENTER);
         frame.pack();
         frame.setLocationRelativeTo(null);
