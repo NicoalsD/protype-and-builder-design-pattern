@@ -109,7 +109,8 @@ public class TourApp {
         DefaultMutableTreeNode node = (DefaultMutableTreeNode) stopTree.getLastSelectedPathComponent();
         selected = nodeToEvent.get(node);
         if (selected == null) {
-            return;
+            selected = master;
+            node = (DefaultMutableTreeNode) rootNode.getFirstChild();
         }
         updateNodeText(node);
         int remaining = selected.remaining();
