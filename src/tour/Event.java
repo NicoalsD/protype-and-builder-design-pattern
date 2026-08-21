@@ -43,6 +43,11 @@ public class Event {
         return capacity - sold;
     }
 
+    @Override
+    public String toString() {
+        return city + " | " + venue + " (" + date + ")";
+    }
+
     public void sell(TicketTier tier) {
         // ponytail: shared capacity pool, single sold counter; per-tier caps or
         // per-tier sales tracking need a Map<TicketTier,Integer>.
